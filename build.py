@@ -216,7 +216,6 @@ def ensure_src_link(import_path, src_path):
     given import path appear in the 'GOPATH' expected by go tools. Returns
     the full path of the link.
     """
-    project_dir = ensure_project_dir()
     go_src = ensure_go_src()
     src_link = os.path.join(go_src, import_path)
     link_dir = os.path.dirname(src_link)
@@ -615,13 +614,8 @@ def lint():
     """
     Runs the 'golint' tool on all the source files.
     """
-    go_tool(
-        "golint",
-        "-min_confidence", "0.9",
-        "-set_exit_status",
-        "./pkg/...",
-        "./cmd/...",
-    )
+    go_tool("golint", "-set_exit_status", "./pkg/...")
+    go_tool("golint", "-set_exit_status", "./cmd/...")
 
 
 def fmt():

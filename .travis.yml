@@ -16,6 +16,11 @@ install:
 - go get github.com/client9/misspell/cmd/misspell
 
 script:
-- make images
+# Check for `go fmt` errors
+- if [ $(gofmt -s -l ./pkg/ ./cmd/ | wc -l) -eq 0 ]; then true; else false; fi;
+# Check for `golint` errors
 - make lint
+# Check for common misspell errors (this is not a speller)
 - misspell -error cmd/** pkg/** README.adoc
+# Check that everything compiles
+- make images
