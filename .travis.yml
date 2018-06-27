@@ -14,8 +14,11 @@ install:
 - go get github.com/golang/dep/cmd/dep
 - go get golang.org/x/lint/golint
 - go get github.com/client9/misspell/cmd/misspell
+- sudo apt-get install python3-pip
+- sudo pip-3 install pylint
 
 script:
 - make images
 - make lint
 - misspell -error cmd/** pkg/** README.adoc
+- pylint3 build.py

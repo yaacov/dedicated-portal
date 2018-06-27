@@ -17,6 +17,8 @@
 # limitations under the License.
 #
 
+""" build.py a Makefile helper script """
+
 import argparse
 import os
 import os.path
@@ -40,7 +42,7 @@ VARIABLE_RE = re.compile(
     (?P<name>\w+)
     s*\}\}
     """,
-    re.VERBOSE
+    re.VERBOSE,
 )
 
 # The regular expression used to check if a file is a template, i.e, if its
@@ -61,11 +63,12 @@ TEMPLATE_RE = re.compile(
 # It will execute 'dep ensure -v' inside the go environment but it will not
 # parse or process the 'ensure' and '-v' options.
 DIRECT_TOOLS = [
-  "dep",
-  "go",
+    "dep",
+    "go",
 ]
 
 # The values extracted from the command line:
+# pylint: disable=invalid-name
 argv = None
 
 
@@ -83,14 +86,17 @@ def cache(function):
     when the function is called the second time the result will be returned
     from the cache without actually executing it.
     """
-    cache = dict()
+    decorator_cache = dict()
 
     def helper(*key):
-        if key in cache:
-            value = cache[key]
+        """
+        the decorator return function
+        """
+        if key in decorator_cache:
+            value = decorator_cache[key]
         else:
             value = function(*key)
-            cache[key] = value
+            decorator_cache[key] = value
         return value
     return helper
 
@@ -152,6 +158,9 @@ def go_tool(*args):
 
 @cache
 def ensure_project_dir():
+    """
+    Returns the project directory.
+    """
     say("Calculating project directory")
     return os.path.dirname(os.path.realpath(__file__))
 
@@ -216,7 +225,6 @@ def ensure_src_link(import_path, src_path):
     given import path appear in the 'GOPATH' expected by go tools. Returns
     the full path of the link.
     """
-    project_dir = ensure_project_dir()
     go_src = ensure_go_src()
     src_link = os.path.join(go_src, import_path)
     link_dir = os.path.dirname(src_link)
@@ -334,8 +342,8 @@ def ensure_app(app_name):
     result = process.wait()
     if result != 0:
         raise Exception("Command '{cmd}' failed with code {code}".format(
-           cmd=cmd,
-           code=result,
+            cmd=cmd,
+            code=result,
         ))
 
     # Build the application:
@@ -349,8 +357,8 @@ def ensure_app(app_name):
     result = process.wait()
     if result != 0:
         raise Exception("Command '{cmd}' failed with code {code}".format(
-           cmd=cmd,
-           code=result,
+            cmd=cmd,
+            code=result,
         ))
 
     # Return the build directory:
@@ -386,6 +394,7 @@ def ensure_images():
     return image_tags
 
 
+# pylint: disable=too-many-locals
 @cache
 def ensure_image(image_name):
     """
@@ -435,11 +444,11 @@ def ensure_image(image_name):
                 if TEMPLATE_RE.search(src_name) is not None:
                     dst_name = TEMPLATE_RE.sub("", src_name)
                     dst_path = os.path.join(dst_dir, dst_name)
-                    with open(src_path) as fd:
-                        src_content = fd.read()
+                    with open(src_path) as fd_src:
+                        src_content = fd_src.read()
                     dst_content = process_template(src_content, image_vars)
-                    with open(dst_path, "w") as fd:
-                        fd.write(dst_content)
+                    with open(dst_path, "w") as fd_dst:
+                        fd_dst.write(dst_content)
                 else:
                     dst_name = src_name
                     dst_path = os.path.join(dst_dir, dst_name)
@@ -522,7 +531,7 @@ def ensure_image_tar(image_tag, compress=False):
         ))
 
     # Compress the tar files:
-    if argv.compress:
+    if argv.compress or compress:
         args = [
             "gzip",
             "--force",
@@ -560,6 +569,7 @@ def ensure_global_variables():
     )
 
 
+# pylint: disable=dangerous-default-value
 def process_template(template, variables={}):
     """
     Process the given template text and returns the result. The processing
@@ -632,7 +642,12 @@ def fmt():
 
 
 def main():
-    # Create the top level command line parser:
+    """
+    Create the top level command line parser:
+    """
+    # pylint: disable=global-statement
+    global argv
+
     parser = argparse.ArgumentParser(
         prog=os.path.basename(sys.argv[0]),
         description="A simple build tool, just for this project.",
@@ -691,10 +706,10 @@ def main():
     # Run the selected tool:
     code = 0
 
-    if len(sys.argv) > 0 and sys.argv[1] in DIRECT_TOOLS:
+    args_len = len(sys.argv)
+    if args_len > 0 and sys.argv[1] in DIRECT_TOOLS:
         go_tool(*sys.argv[1:])
     else:
-        global argv
         argv = parser.parse_args()
         if not hasattr(argv, "func"):
             parser.print_usage()
