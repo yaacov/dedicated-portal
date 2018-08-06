@@ -66,6 +66,8 @@ var (
 	clusterOperatorKubeAddress string
 	clusterOperatorKubeConfig  string
 	openAPIdefinitions         []byte
+	defaultAWSSecret           string
+	defaultSSHSecret           string
 )
 
 // Server serves HTTP API requests on clusters.
@@ -128,6 +130,14 @@ func init() {
 		"https-key-path",
 		"",
 		"The path to the tls.key file.",
+	)
+	flags.StringVar(
+		&defaultAWSSecret, "default-aws-secret", "", "The name of the secret containing"+
+			" the default aws credentials, required in order to provision a cluster.",
+	)
+	flags.StringVar(
+		&defaultSSHSecret, "default-ssh-secret", "", "The name of the secret containing"+
+			" the default ssh credentials, required in order to provision a cluster.",
 	)
 }
 
@@ -235,8 +245,18 @@ func runServe(cmd *cobra.Command, args []string) {
 		check(err, "Can't migrate sql schema")
 	}
 
+	if defaultAWSSecret == "" {
+		glog.Warningf("flag missing: --default-aws-secret. You will only be able to provision " +
+			"clusters using credentials recieved from users.")
+	}
+
+	if defaultSSHSecret == "" {
+		glog.Warningf("flag missing: --default-ssh-secret. You will only be able to provision " +
+			"clusters using credentials recieved from users.")
+	}
+
 	// Create a connection object to the ClusterOperator.
-	provisioner, err := NewClusterOperatorProvisioner(k8sConfig)
+	provisioner, err := NewClusterOperatorProvisioner(k8sConfig, defaultAWSSecret, defaultSSHSecret)
 	if err != nil {
 		panic(fmt.Sprintf("Error starting clusters service: %v", err))
 	}

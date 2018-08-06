@@ -23,16 +23,17 @@ import (
 	"github.com/container-mgmt/dedicated-portal/pkg/api"
 	"github.com/golang/glog"
 
+	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/rest"
+
 	v1alpha1 "github.com/openshift/cluster-operator/pkg/apis/clusteroperator/v1alpha1"
 	clientset "github.com/openshift/cluster-operator/pkg/client/clientset_generated/clientset"
 	controller "github.com/openshift/cluster-operator/pkg/controller"
 	corev1 "k8s.io/api/core/v1"
-	errors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	schema "k8s.io/apimachinery/pkg/runtime/schema"
-	k8s "k8s.io/client-go/kubernetes"
-	scheme "k8s.io/client-go/kubernetes/scheme"
-	rest "k8s.io/client-go/rest"
 	capiv1 "sigs.k8s.io/cluster-api/pkg/apis/cluster/v1alpha1"
 	capiclient "sigs.k8s.io/cluster-api/pkg/client/clientset_generated/clientset"
 )
@@ -48,14 +49,17 @@ type ClusterProvisioner interface {
 // using Cluster Operator.
 type ClusterOperatorProvisioner struct {
 	clusterOperatorClient *clientset.Clientset
-	k8sClient             *k8s.Clientset
+	k8sClient             *kubernetes.Clientset
 	clusterAPIClient      *capiclient.Clientset
+	awsSecretRef          string
+	sshSecretRef          string
 }
 
 const clusterNameSpace = "unified-hybrid-cloud"
 
 // NewClusterOperatorProvisioner A constructor for ClusterOperatorProvisioner struct.
-func NewClusterOperatorProvisioner(k8sConfig *rest.Config) (*ClusterOperatorProvisioner, error) {
+func NewClusterOperatorProvisioner(k8sConfig *rest.Config,
+	awsSecretRef string, sshSecretRef string) (*ClusterOperatorProvisioner, error) {
 	metav1.AddToGroupVersion(scheme.Scheme, schema.GroupVersion{Version: "v1"})
 	// Register ClusterDeployment, ClusterVersion, and other CRD's to k8s scheme.
 	err := v1alpha1.AddToScheme(scheme.Scheme)
@@ -66,7 +70,7 @@ func NewClusterOperatorProvisioner(k8sConfig *rest.Config) (*ClusterOperatorProv
 	if err != nil {
 		return nil, fmt.Errorf("Failed to create cluster operator client: %s", err)
 	}
-	k8sClient, err := k8s.NewForConfig(k8sConfig)
+	k8sClient, err := kubernetes.NewForConfig(k8sConfig)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to create kubernetes client: %s", err)
 	}
@@ -80,18 +84,15 @@ func NewClusterOperatorProvisioner(k8sConfig *rest.Config) (*ClusterOperatorProv
 		clusterOperatorClient: clusterOperatorClient,
 		k8sClient:             k8sClient,
 		clusterAPIClient:      clusterAPIClient,
+		awsSecretRef:          awsSecretRef,
+		sshSecretRef:          sshSecretRef,
 	}, nil
 }
 
 // Provision provisions a cluster on aws using cluster operator.
 func (provisioner *ClusterOperatorProvisioner) Provision(spec api.Cluster) error {
-	// Create secrets.
-	err := provisioner.createSecrets(spec)
-	if err != nil {
-		return fmt.Errorf("Failed to create secrets: %s", err)
-	}
 	// Create cluster version object.
-	err = provisioner.createClusterVersionIfNotExist(spec)
+	err := provisioner.createClusterVersionIfNotExist(spec)
 	if err != nil {
 		return fmt.Errorf("Failed to create ClusterVersion object: %s", err)
 	}
@@ -126,17 +127,17 @@ func (provisioner *ClusterOperatorProvisioner) clusterDeploymentFromSpec(spec ap
 		Hardware: v1alpha1.ClusterHardwareSpec{
 			AWS: &v1alpha1.AWSClusterSpec{
 				AccountSecret: corev1.LocalObjectReference{
-					Name: fmt.Sprintf("%s-aws-creds", clusterName),
+					Name: provisioner.awsSecretRef,
 				},
 				SSHSecret: corev1.LocalObjectReference{
-					Name: fmt.Sprintf("%s-ssh-key", clusterName),
+					Name: provisioner.sshSecretRef,
 				},
 				SSHUser: "centos",
 				SSLSecret: corev1.LocalObjectReference{
-					Name: fmt.Sprintf("%s-certs", clusterName),
+					Name: "default-cluster-tls-certs",
 				},
 				Region:      spec.Region,
-				KeyPairName: "libra",
+				KeyPairName: "default-ssh-key-pair",
 			},
 		},
 		DefaultHardwareSpec: &v1alpha1.MachineSetHardwareSpec{
@@ -252,66 +253,6 @@ func (provisioner *ClusterOperatorProvisioner) createClusterVersionIfNotExist(sp
 			clusterVersionName, clusterNameSpace, statusError.ErrStatus.Message)
 	} else if err != nil {
 		return err
-	}
-	return nil
-}
-
-func (provisioner *ClusterOperatorProvisioner) createSecrets(spec api.Cluster) error {
-	secrets := []*corev1.Secret{
-		{
-			TypeMeta: metav1.TypeMeta{
-				APIVersion: "v1",
-				Kind:       "Secret",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace: clusterNameSpace,
-				Name:      fmt.Sprintf("%s-certs", strings.ToLower(spec.Name)),
-			},
-			Type: "Opaque",
-			Data: map[string][]byte{
-				"server.crt": []byte("fake_tls_cert"),
-				"server.key": []byte("fake_tls_key"),
-			},
-		},
-		{
-			TypeMeta: metav1.TypeMeta{
-				APIVersion: "v1",
-				Kind:       "Secret",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace: clusterNameSpace,
-				Name:      fmt.Sprintf("%s-aws-creds", strings.ToLower(spec.Name)),
-			},
-			Type: "Opaque",
-			Data: map[string][]byte{
-				"awsAccessKeyId":     []byte("fake_aws_access_key_id"),
-				"awsSecretAccessKey": []byte("fake_aws_secrete_access_key"),
-			},
-		},
-		{
-			TypeMeta: metav1.TypeMeta{
-				APIVersion: "v1",
-				Kind:       "Secret",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace: clusterNameSpace,
-				Name:      fmt.Sprintf("%s-ssh-key", strings.ToLower(spec.Name)),
-			},
-			Type: "Opaque",
-			Data: map[string][]byte{
-				"ssh-privatekey": []byte("fake_ssh_private_key"),
-				"ssh-publickey":  []byte("fake_ssh_public_key"),
-			},
-		},
-	}
-	// Create secretes
-	for _, secret := range secrets {
-		_, err := provisioner.k8sClient.CoreV1().
-			Secrets(clusterNameSpace).
-			Create(secret)
-		if err != nil {
-			return err
-		}
 	}
 	return nil
 }

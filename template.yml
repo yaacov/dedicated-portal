@@ -47,6 +47,67 @@ parameters:
   description: If set to true, services will run without authentication.
   value: "false"
 
+- name: SSH_PRIVATE_KEY
+  description: the default ssh private key to use by cluster-service for cluster provisioning.
+  value: |-
+    LS0tLS1CRUdJTiBSU0EgUFJJVkFURSBLRVktLS0tLQpNSUlFb3dJQkFBS0NBUUVBcks0blFJK3pl
+    NU4wcldhQkErN09YTWczSlhWWUlqVDA0cUV5WWtNQ3FtZHJNOGdMClFiUjJVRU14d1hzVzRua2ll
+    RnpYNUlCMmVRYXIwWDJnL2ZGUFdwMWRsejd0dVFhcXNnSllsVVFwS3NJUkxrdXQKMGJoQ3haZlZD
+    TUs5S3BlanNMNkU4dDNYZDBkYXpSUWFxQVlraEZxWkNQbHpGbmZJK2ZHeWVlTFl2akFBNE4xaApN
+    aExuZmRJbzFFVGRRb1lueG1IZVR1ZHZVcDJGL3BqUGhkR05JTjZJR2g4Z05TelFxZlhwdVJ6TVhD
+    K3JYaFFvCmkyS0dFdGRYc0orRlFHUHJaTXJuVzVHTGQ2Ri9Ydk9uOUoyZGQrY1hnWk5oVUlyWm5O
+    ZzNmbERpcno2UElseXgKN2F3bXlKU2NEcTJXcTNxcWt1eitLN3A0Nkh5VGdyOVJGNkVGbHdJREFR
+    QUJBb0lCQUdaN2lVSXd4dFd0Z3M2eQppaGs2Ym5EMFJuNU5zVHZEOEI1Y2l0bDBhYTJXYVRJM0pD
+    OGZtaVF5Yk9JbVdrT1ludE9PVG5jSG9zaGJKRGZWCmRtbWdBSGVIODVhaXUxVlhWcEVGQVd1OUl5
+    MkVOY3dqRUFycWIzNXppUFNGRnQyalYzdTY1bzU1Q0xwNnQ3SUUKbjNsZkErY2xHYlFRejdQaTdY
+    MGhhOG9Zem9lNFhncm55UkFFa293bk5aTlpQRFJaWUpMM2oycUIyOFRXT3JkRwpZN2JYZ3BjUXVn
+    cTlpOHRLNDVQbUp3eEdDMnhmT0VIR3lqd0lQK1J4S2JLaDMxd0ZvTjZ2SjBTblJ4cHkvS0NWCmxX
+    VzY2UUpzejVoY3FEdUxrby96TFJ5eGx1L0oxZjZvVEc5eGhGeGxYcUExaDVCa3poLzF4ZHFob3Nm
+    aklBUXgKODcwZkVUa0NnWUVBMDV0LzMxWTdBQm5NQ1IweUlWbldsOWkvYnh3UURkMTNjY0tmYTdC
+    eGE4d3dINDNIWlpnQwpaVnBCemxoek5WUmczTWw0OEhHbGpDZEtYWFZDZnZncllsUVl1SG5pbFBE
+    ZXJQQTFVNFQyRTNXWTcycUpkSzE4CkJHR3ZYaWQ2MFplcXRwYUVtbTYzcktmNm5PTTBnNjRNeDRW
+    bnNxQ0tJdDYzL2pncHJkdmpxYlVDZ1lFQTBPZ00KbjVweTQ0L1k2SmEwZkRuWHFNQ3NWbVhaUVRP
+    OUZRaXdHNmZjV0pua3hnYmFWY3Rzd2h0enhSMEltMjVWMG9RMQo4QjkyRUc2V2ZMNkQvdDEydUor
+    WUJVeUVHT0QxTGRTaW9qWWo5UDZNV3MxQzdxU2dMYm9TYms1ejhvZTd1RkdECm1hM3pFNUE1ZGdW
+    RHNuUnlKN1dZUTkrTGVNekdWMVdrWnE0YlVac0NnWUVBdTlPL0FVTE5SQjJoMmtVc0JpWjAKTUh5
+    WUQ4dmRCREdjb0VHY3VEMzVyekdqVlo3SGF3b3V0a0FUUVZHSmtjQy82YnA3dXhGbFhLNVRkL2xw
+    ZU1KWAo0QU85bmFHeTJYbWtiZVVac0hUSTZDVHVCeldOcFIrSWdXc2orbk1ZdFlubVlnUGcyQ09H
+    clo2OCtSMURzODUrClVXdTh5L1ZzSjkrQmVnbm9GUWFsWWpFQ2dZQUZIMXVINGxxazE5Y2l4T2RD
+    RUkwSU4wbENpUmJOc1g0V2NQTVkKaW9JdHJnQmRGcmZ0MktJZkZGcy9YeG5oN2MrdTdNMEJ5Vk8w
+    elhGbE42cTI2aWxLRjZlN29ZZXZzSHh5bGo4eQpxUTh5cDdjN1ZzTW9aT01FbkFadHJBRE4xcVEw
+    dmRMelJyK3FJQ1E0ajZKOFVyeWwycDhVTXZ3Umh6dnAwbERJCnI4WTl0d0tCZ0RSc1Iyb3Q2UHpu
+    Qm8zc3NOWXU2WElVVVFEc2R4a0lkdFFiMDBzMnJUeXBMdDN0OHdYYlRUQ3UKd29ZY2dJckx2dVRU
+    dlVyc09jYU0zWVM2V3Y3TENlbmh3RmEvdW13eWlvMzJCTUpkbWxXWlpsMTdRWkVZNlp2eQprekxP
+    UGR6NE91Wi9HSGdNTm1QOHZ4Qm9yT0JNazZtVlBvWW1LNzNMd1VpdkVYa1o4MHdECi0tLS0tRU5E
+    IFJTQSBQUklWQVRFIEtFWS0tLS0tCg==
+
+- name: SSH_PUBLIC_KEY
+  description: the default ssh public key to use by cluster-service for cluster provisioning.
+  value: |-
+    c3NoLXJzYSBBQUFBQjNOemFDMXljMkVBQUFBREFRQUJBQUFCQVFDc3JpZEFqN043azNTdFpvRUQ3
+    czVjeURjbGRWZ2lOUFRpb1RKaVF3S3FaMnN6eUF0QnRIWlFRekhCZXhiaWVTSjRYTmZrZ0haNUJx
+    dlJmYUQ5OFU5YW5WMlhQdTI1QnFxeUFsaVZSQ2txd2hFdVM2M1J1RUxGbDlVSXdyMHFsNk93dm9U
+    eTNkZDNSMXJORkJxb0JpU0VXcGtJK1hNV2Q4ajU4Yko1NHRpK01BRGczV0V5RXVkOTBpalVSTjFD
+    aGlmR1lkNU81MjlTbllYK21NK0YwWTBnM29nYUh5QTFMTkNwOWVtNUhNeGNMNnRlRkNpTFlvWVMx
+    MWV3bjRWQVkrdGt5dWRia1l0M29YOWU4NmYwbloxMzV4ZUJrMkZRaXRtYzJEZCtVT0t2UG84aVhM
+    SHRyQ2JJbEp3T3JaYXJlcXFTN1A0cnVuam9mSk9DdjFFWG9RV1gK
+
+- name: AWS_ACCESS_KEY_ID
+  description: the default aws access key id to use by cluster-service for cluster provisioning.
+  value: ""
+
+- name: AWS_SECRET_ACCESS_KEY
+  description: the default aws secret access key to use by cluster-service for cluster provisioning.
+  value: ""
+
+- name: DEFAULT_CLUSTER_TLS_CERTIFICATE
+  description: the default certificate used by customers to connect to the newly provisioned cluster.
+  value: ""
+
+- name: DEFAULT_CLUSTER_TLS_KEY
+  description: the default key used by customers to connect to the newly provisioned cluster.
+  value: ""
+
 objects:
 
 # Cluster service
@@ -77,6 +138,8 @@ objects:
         - name: service
           image: dedicated-portal/clusters-service:${VERSION}
           imagePullPolicy: IfNotPresent
+          command:
+          - /usr/local/bin/clusters-service
           args:
           - serve
           - --demo-mode=${DEMO_MODE}
@@ -84,9 +147,42 @@ objects:
           - --jwk-certs-url=https://developers.redhat.com/auth/realms/rhd/protocol/openid-connect/certs
           - --https-cert-path=/secrets/tls.crt
           - --https-key-path=/secrets/tls.key
+          - --default-aws-secret=default-aws-secret
+          - --default-ssh-secret=default-ssh-secret
           volumeMounts:
           - name: https-clusters-secret
             mountPath: "/secrets"
+
+# Default SSH Secret
+- apiVersion: v1
+  kind: Secret
+  metadata:
+    name: default-ssh-secret
+  type: Opaque
+  data:
+    ssh-privatekey: ${SSH_PRIVATE_KEY}
+    ssh-publickey: ${SSH_PUBLIC_KEY}
+
+# Default AWS secret
+- apiVersion: v1
+  kind: Secret
+  metadata:
+    name: default-aws-secret
+  type: Opaque
+  data:
+    awsAccessKeyId: ${AWS_ACCESS_KEY_ID}
+    awsSecretAccessKey: ${AWS_SECRET_ACCESS_KEY}
+
+# Default Cluster TLS secret
+- apiVersion: v1
+  kind: Secret
+  metadata:
+    name: default-cluster-tls-certs
+  type: Opaque
+  data:
+    server.crt: ${DEFAULT_CLUSTER_TLS_CERTIFICATE}
+    server.key: ${DEFAULT_CLUSTER_TLS_KEY}
+
 # Service
 - apiVersion: v1
   kind: Service
@@ -143,6 +239,8 @@ objects:
         - name: service
           image: dedicated-portal/customers-service:${VERSION}
           imagePullPolicy: IfNotPresent
+          command:
+          - /usr/local/bin/customers-service
           args:
           - serve
           - --demo-mode=${DEMO_MODE}
