@@ -288,3 +288,44 @@ objects:
     ports:
     - port: 5432
       targetPort: 5432
+
+- apiVersion: rbac.authorization.k8s.io/v1
+  kind: ClusterRole
+  metadata:
+    name: cluster-operator-client
+  rules:
+  - apiGroups:
+    - clusteroperator.openshift.io
+    resources:
+    - clusterdeployments
+    - clusterversions
+    verbs:
+    - create
+    - delete
+    - get
+    - list
+    - patch
+    - update
+    - watch
+  - apiGroups:
+    - cluster.k8s.io
+    resources:
+    - clusters
+    verbs:
+    - get
+    - list
+    - watch
+  
+- apiVersion: rbac.authorization.k8s.io/v1
+  kind: ClusterRoleBinding
+  metadata:
+    name: uhc-cluster-operator-client
+  roleRef:
+    apiGroup: rbac.authorization.k8s.io
+    kind: ClusterRole
+    name: cluster-operator-client
+  subjects:
+  - apiGroup: ""
+    kind: ServiceAccount
+    name: uhc
+    namespace: unified-hybrid-cloud

@@ -152,6 +152,7 @@ func (s Server) start() error {
 	apiRouter.HandleFunc("/clusters", s.createCluster).Methods(http.MethodPost)
 	apiRouter.HandleFunc("/clusters/{id}", s.getCluster).Methods(http.MethodGet)
 	apiRouter.HandleFunc("/openapi", getOpenAPI).Methods(http.MethodGet)
+	apiRouter.HandleFunc("/clusters/{id}/status", s.getClusterStatus).Methods(http.MethodGet)
 
 	// If not in demo mode, check JWK and add a JWT middleware:
 	//

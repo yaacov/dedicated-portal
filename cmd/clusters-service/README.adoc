@@ -100,6 +100,16 @@ curl  http://clusters-service.127.0.0.1.nip.io/api/clusters_mgmt/v1/clusters/17Y
 }
 ----
 
+== Get Cluster Status
+[source]
+----
+curl  http://clusters-service.127.0.0.1.nip.io/api/clusters_mgmt/v1/clusters/17YtAO99Xxd7AS25rPatEGrdX7d/status
+{
+  "id": "17YtAO99Xxd7AS25rPatEGrdX7d",
+  "state": "Ready"
+}
+----
+
 == How to use cluster-operator along side cluster-service
 Currently, there is no deployment for cluster-operator alongside cluster-service.
 To deploy cluster-operator follow the one-time setup instructions under https://github.com/openshift/cluster-operator:

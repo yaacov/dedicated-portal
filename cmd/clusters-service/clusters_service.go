@@ -31,6 +31,7 @@ type ClustersService interface {
 	List(args ListArguments) (clusters api.ClusterList, err error)
 	Create(spec api.Cluster, provision bool) (result api.Cluster, err error)
 	Get(id string) (result api.Cluster, err error)
+	GetStatus(id string) (result api.ClusterStatus, err error)
 }
 
 // GenericClustersService is a ClusterService placeholder implementation.
@@ -161,15 +162,6 @@ func (cs GenericClustersService) Create(spec api.Cluster, provision bool) (resul
 		return api.Cluster{}, err
 	}
 
-	if provision {
-		// Use cluster provisioner to Provision a cluster.
-		err = cs.provisioner.Provision(spec)
-		if err != nil {
-			return api.Cluster{}, fmt.Errorf("An error occurred while trying to provision cluster %s: %s",
-				spec.Name, err)
-		}
-	}
-
 	db, err := sql.Open("postgres", cs.connectionURL)
 	if err != nil {
 		return api.Cluster{}, err
@@ -228,7 +220,7 @@ func (cs GenericClustersService) Create(spec api.Cluster, provision bool) (resul
 	}
 
 	totalNodes := spec.Nodes.Master + spec.Nodes.Infra + spec.Nodes.Compute
-	return api.Cluster{
+	newCluster := api.Cluster{
 		Name:   spec.Name,
 		ID:     id.String(),
 		Region: spec.Region,
@@ -251,7 +243,18 @@ func (cs GenericClustersService) Create(spec api.Cluster, provision bool) (resul
 			Used:  0,
 		},
 		State: api.ClusterStateInstalling,
-	}, nil
+	}
+
+	if provision {
+		// Use cluster provisioner to Provision a cluster.
+		err = cs.provisioner.Provision(newCluster)
+		if err != nil {
+			return api.Cluster{}, fmt.Errorf("An error occurred while trying to provision cluster %s: %s",
+				spec.Name, err)
+		}
+	}
+
+	return newCluster, nil
 
 }
 
@@ -334,4 +337,46 @@ func (cs GenericClustersService) getClusterCount(db *sql.DB) (total int, err err
 	// retrieve total number of clusters.
 	err = db.QueryRow("select count(*) from clusters").Scan(&total)
 	return
+}
+
+// GetStatus returns a cluster status by id
+func (cs GenericClustersService) GetStatus(id string) (result api.ClusterStatus, err error) {
+
+	// First check the id exists
+	db, err := sql.Open("postgres", cs.connectionURL)
+	if err != nil {
+		return api.ClusterStatus{}, err
+	}
+	defer db.Close()
+	var name string
+	err = db.QueryRow(`
+	SELECT 
+		id, 
+		name
+	FROM clusters	
+	WHERE 
+		id = $1
+	`, id,
+	).Scan(
+		&id,
+		&name,
+	)
+
+	if err != nil {
+		return api.ClusterStatus{}, err
+	}
+
+	var state api.ClusterState
+
+	// Check state with provisioner
+	state, err = cs.provisioner.GetState(id)
+	if err != nil {
+		return api.ClusterStatus{}, fmt.Errorf("An error occurred while trying get status for cluster %s: %s",
+			id, err)
+	}
+
+	return api.ClusterStatus{
+		ID:    id,
+		State: state,
+	}, nil
 }

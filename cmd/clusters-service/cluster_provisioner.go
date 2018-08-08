@@ -21,9 +21,11 @@ import (
 	"strings"
 
 	"github.com/container-mgmt/dedicated-portal/pkg/api"
+	"github.com/golang/glog"
 
 	v1alpha1 "github.com/openshift/cluster-operator/pkg/apis/clusteroperator/v1alpha1"
 	clientset "github.com/openshift/cluster-operator/pkg/client/clientset_generated/clientset"
+	controller "github.com/openshift/cluster-operator/pkg/controller"
 	corev1 "k8s.io/api/core/v1"
 	errors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -32,12 +34,14 @@ import (
 	scheme "k8s.io/client-go/kubernetes/scheme"
 	rest "k8s.io/client-go/rest"
 	capiv1 "sigs.k8s.io/cluster-api/pkg/apis/cluster/v1alpha1"
+	capiclient "sigs.k8s.io/cluster-api/pkg/client/clientset_generated/clientset"
 )
 
 // ClusterProvisioner is the interface used by cluster service to
 // provision clusters.
 type ClusterProvisioner interface {
 	Provision(spec api.Cluster) error
+	GetState(id string) (api.ClusterState, error)
 }
 
 // ClusterOperatorProvisioner is the struct implementing ClusterProvisioner
@@ -45,6 +49,7 @@ type ClusterProvisioner interface {
 type ClusterOperatorProvisioner struct {
 	clusterOperatorClient *clientset.Clientset
 	k8sClient             *k8s.Clientset
+	clusterAPIClient      *capiclient.Clientset
 }
 
 const clusterNameSpace = "unified-hybrid-cloud"
@@ -65,9 +70,16 @@ func NewClusterOperatorProvisioner(k8sConfig *rest.Config) (*ClusterOperatorProv
 	if err != nil {
 		return nil, fmt.Errorf("Failed to create kubernetes client: %s", err)
 	}
+
+	clusterAPIClient, err := capiclient.NewForConfig(k8sConfig)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to create cluster operator client: %s", err)
+	}
+
 	return &ClusterOperatorProvisioner{
 		clusterOperatorClient: clusterOperatorClient,
 		k8sClient:             k8sClient,
+		clusterAPIClient:      clusterAPIClient,
 	}, nil
 }
 
@@ -134,6 +146,7 @@ func (provisioner *ClusterOperatorProvisioner) clusterDeploymentFromSpec(spec ap
 		},
 		MachineSets: provisioner.machineSetsFromSpec(spec),
 	}
+
 	clusterDeployment := v1alpha1.ClusterDeployment{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "clusteroperator.openshift.io/v1alpha1",
@@ -142,6 +155,9 @@ func (provisioner *ClusterOperatorProvisioner) clusterDeploymentFromSpec(spec ap
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      clusterName,
 			Namespace: clusterNameSpace,
+			Labels: map[string]string{
+				"uhc.openshift.com/cluster_id": spec.ID,
+			},
 		},
 		Spec: clusterDeploymentSpec,
 	}
@@ -298,4 +314,65 @@ func (provisioner *ClusterOperatorProvisioner) createSecrets(spec api.Cluster) e
 		}
 	}
 	return nil
+}
+
+// GetState returns the state of the cluster
+func (provisioner *ClusterOperatorProvisioner) GetState(id string) (api.ClusterState, error) {
+
+	labelSelector := fmt.Sprintf("uhc.openshift.com/cluster_id=%s", id)
+
+	// get the clusterdeployment object with the corresponding ID
+	clusterDeployments, err := provisioner.clusterOperatorClient.
+		ClusteroperatorV1alpha1().
+		ClusterDeployments(clusterNameSpace).
+		List(metav1.ListOptions{
+			LabelSelector: labelSelector,
+		})
+
+	if err != nil {
+		return api.ClusterStateError, err
+	}
+
+	// Sanity checks
+	if len(clusterDeployments.Items) == 0 {
+		// ClusterDeployment object doesn't exist.
+		glog.Warningf("Couldn't find cluster deployment object with ID=%s", id)
+		return api.ClusterStateError, fmt.Errorf("Couldn't find cluster deployment object with ID=%s", id)
+	} else if len(clusterDeployments.Items) > 1 {
+		// There should be only one deployment since the ID is unique
+		glog.Errorf("Internal error: There is more than one deployment with ID=%s", id)
+		return api.ClusterStateError, fmt.Errorf("There is more than one deployment with ID=%s", id)
+	}
+
+	clusterDeployment := clusterDeployments.Items[0]
+
+	// Get the cluster that was created by that deployment
+	cluster, err := provisioner.clusterAPIClient.
+		ClusterV1alpha1().
+		Clusters(clusterNameSpace).
+		Get(clusterDeployment.Spec.ClusterName, metav1.GetOptions{})
+	if err != nil {
+		fmt.Println("Failed to get cluster named:", clusterDeployment.Spec.ClusterName)
+		return api.ClusterStateError, err
+	}
+
+	providerStatus, err := controller.ClusterProviderStatusFromCluster(cluster)
+	if err != nil {
+		fmt.Println("Failed to read cluster status for", clusterDeployment.Spec.ClusterName)
+		return api.ClusterStateError, err
+	}
+
+	return provisioner.parseClusterStatus(*providerStatus)
+}
+
+func (provisioner *ClusterOperatorProvisioner) parseClusterStatus(
+	providerStatus v1alpha1.ClusterProviderStatus) (state api.ClusterState, err error) {
+	// Currently we just check the "Ready" flag. In the future we should return more detailed data
+	if providerStatus.Ready {
+		state = api.ClusterStateReady
+	} else {
+		state = api.ClusterStateInstalling
+	}
+
+	return
 }

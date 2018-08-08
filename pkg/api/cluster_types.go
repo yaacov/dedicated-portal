@@ -42,6 +42,12 @@ type Cluster struct {
 	State   ClusterState    `json:"state"`
 }
 
+// ClusterStatus represents the status of a cluster
+type ClusterStatus struct {
+	ID    string       `json:"id,omitempty"`
+	State ClusterState `json:"state,omitempty"`
+}
+
 // ClusterNodes represents the node count inside a cluster.
 type ClusterNodes struct {
 	Total   int `json:"total"`

@@ -91,6 +91,22 @@ func (s Server) getCluster(w http.ResponseWriter, r *http.Request) {
 	writeJSONResponse(w, http.StatusOK, cluster)
 }
 
+func (s Server) getClusterStatus(w http.ResponseWriter, r *http.Request) {
+	id := mux.Vars(r)["id"]
+	if id == "" {
+		writeJSONResponse(w, http.StatusInternalServerError, map[string]string{"error": "no id provided"})
+		return
+	}
+
+	status, err := s.clusterService.GetStatus(id)
+	if err != nil {
+		writeJSONResponse(w, http.StatusInternalServerError, map[string]string{"error": fmt.Sprintf("%v", err)})
+		return
+	}
+	writeJSONResponse(w, http.StatusOK, status)
+
+}
+
 func getQueryParamInt(param string, defaultValue int, r *http.Request) (value int, err error) {
 	valueString, ok := r.URL.Query()[param]
 
