@@ -46,10 +46,10 @@ Then the `template.sh` script can be used to create and populate the
 $ ./template.sh
 $ oc get pods -n unified-hybrid-cloud
 NAME                                READY  STATUS   RESTARTS  AGE
-clusters-db-59dbb97d4f-qdmjw        1/1    Running  0         1m
-clusters-service-6b4877b885-k7zg2   1/1    Running  0         1m
-customers-db-6cc7fc8c49-7mh7t       1/1    Running  0         1m
-customers-service-7dfdf5b6b5-hqznw  1/1    Running  0         1m
+clusters-db-service-57bdbc7578-bmdbh   1/1       Running   0          11s
+clusters-service-6fdc495cbb-hgw6t      1/1       Running   0          12s
+customers-db-service-9474b5c56-2kvrn   1/1       Running   0          11s
+customers-service-64f4b95d84-btqb7     1/1       Running   0          12s
 ----
 
 To undeploy the application remove the `unified-hybrid-cloud` namespace:

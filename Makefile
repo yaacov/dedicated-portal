@@ -15,7 +15,7 @@
 #
 
 # The name and version of the project:
-project:=dedicated-portal
+project:=unified-hybrid-cloud
 version:=latest
 
 .PHONY: binaries

@@ -47,6 +47,10 @@ parameters:
   description: If set to true, services will run without authentication.
   value: "false"
 
+- name: PG_DATADIR
+  description: The postgresql data dir.
+  value: "/var/lib/pgsql/data"
+
 - name: SSH_PRIVATE_KEY
   description: the default ssh private key to use by cluster-service for cluster provisioning.
   value: |-
@@ -136,14 +140,14 @@ objects:
               secretName: https-clusters-secret
         containers:
         - name: service
-          image: dedicated-portal/clusters-service:${VERSION}
+          image: unified-hybrid-cloud/clusters-service:${VERSION}
           imagePullPolicy: IfNotPresent
           command:
           - /usr/local/bin/clusters-service
           args:
           - serve
           - --demo-mode=${DEMO_MODE}
-          - --db-url=postgres://service:${PASSWORD}@clusters-db-service.${NAMESPACE}/clusters?sslmode=disable
+          - --db-url=postgres://service:${PASSWORD}@clusters-db-service.${NAMESPACE}/clusters
           - --jwk-certs-url=https://developers.redhat.com/auth/realms/rhd/protocol/openid-connect/certs
           - --https-cert-path=/secrets/tls.crt
           - --https-key-path=/secrets/tls.key
@@ -237,14 +241,14 @@ objects:
             secretName: https-customers-secret
         containers:
         - name: service
-          image: dedicated-portal/customers-service:${VERSION}
+          image: unified-hybrid-cloud/customers-service:${VERSION}
           imagePullPolicy: IfNotPresent
           command:
           - /usr/local/bin/customers-service
           args:
           - serve
           - --demo-mode=${DEMO_MODE}
-          - --db-url=postgres://service:${PASSWORD}@customers-db-service.${NAMESPACE}/customers?sslmode=disable
+          - --db-url=postgres://service:${PASSWORD}@customers-db-service.${NAMESPACE}/customers
           - --jwk-certs-url=https://developers.redhat.com/auth/realms/rhd/protocol/openid-connect/certs
           - --https-cert-path=/secrets/tls.crt
           - --https-key-path=/secrets/tls.key
@@ -299,6 +303,15 @@ objects:
         labels:
           app: customers-db-service
       spec:
+        initContainers:
+        - name: install-ssl
+          image: busybox
+          command: ['install', '-m', '0600', '/secrets/tls.crt', '/secrets/tls.key', '${PG_DATADIR}']
+          volumeMounts:
+          - mountPath: /var/lib/pgsql/data
+            name: data
+          - name: https-customers-db-secret
+            mountPath: "/secrets"
         containers:
         - name: postgresql
           image: centos/postgresql-94-centos7
@@ -316,9 +329,19 @@ objects:
           volumeMounts:
           - mountPath: /var/lib/pgsql/data
             name: data
+          - name: https-customers-db-secret
+            mountPath: "/secrets"
+          - name: ssl-config-volume
+            mountPath: /opt/app-root/src/postgresql-cfg
         volumes:
-        - emptyDir: {}
-          name: data
+        - name: https-customers-db-secret
+          secret:
+            secretName: https-customers-db-secret
+        - name: ssl-config-volume
+          configMap:
+            name: ssl-config-volume
+        - name: data
+          emptyDir: {}
 # Service
 - apiVersion: v1
   kind: Service
@@ -326,6 +349,8 @@ objects:
     name: customers-db-service
     labels:
       app: customers-db-service
+    annotations:
+      "service.alpha.openshift.io/serving-cert-secret-name": https-customers-db-secret
   spec:
     selector:
       app: customers-db-service
@@ -353,6 +378,15 @@ objects:
         labels:
           app: clusters-db-service
       spec:
+        initContainers:
+        - name: install-ssl
+          image: busybox
+          command: ['install', '-m', '0600', '/secrets/tls.crt', '/secrets/tls.key', '${PG_DATADIR}']
+          volumeMounts:
+          - mountPath: /var/lib/pgsql/data
+            name: data
+          - name: https-clusters-db-secret
+            mountPath: "/secrets"
         containers:
         - name: postgresql
           image: centos/postgresql-94-centos7
@@ -370,9 +404,19 @@ objects:
           volumeMounts:
           - mountPath: /var/lib/pgsql/data
             name: data
+          - name: https-clusters-db-secret
+            mountPath: "/secrets"
+          - name: ssl-config-volume
+            mountPath: /opt/app-root/src/postgresql-cfg
         volumes:
-        - emptyDir: {}
-          name: data
+        - name: https-clusters-db-secret
+          secret:
+            secretName: https-clusters-db-secret
+        - name: ssl-config-volume
+          configMap:
+            name: ssl-config-volume
+        - name: data
+          emptyDir: {}
 # Service
 - apiVersion: v1
   kind: Service
@@ -380,13 +424,25 @@ objects:
     name: clusters-db-service
     labels:
       app: clusters-db-service
+    annotations:
+      "service.alpha.openshift.io/serving-cert-secret-name": https-clusters-db-secret
   spec:
     selector:
       app: clusters-db-service
     ports:
     - port: 5432
       targetPort: 5432
-
+# ConfigMap
+- apiVersion: v1
+  kind: ConfigMap
+  metadata:
+    name: ssl-config-volume
+  data:
+    pg-ssl.conf: |-
+      ssl = on
+      ssl_cert_file = '/var/lib/pgsql/data/tls.crt'
+      ssl_key_file = '/var/lib/pgsql/data/tls.key'
+# ClusterRole
 - apiVersion: rbac.authorization.k8s.io/v1
   kind: ClusterRole
   metadata:
@@ -413,7 +469,7 @@ objects:
     - get
     - list
     - watch
-  
+#ClusterRoleBinding
 - apiVersion: rbac.authorization.k8s.io/v1
   kind: ClusterRoleBinding
   metadata:
