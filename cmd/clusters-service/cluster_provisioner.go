@@ -22,6 +22,7 @@ import (
 
 	"github.com/container-mgmt/dedicated-portal/pkg/api"
 	"github.com/golang/glog"
+	"github.com/openshift/cluster-operator/pkg/controller"
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -31,7 +32,6 @@ import (
 
 	v1alpha1 "github.com/openshift/cluster-operator/pkg/apis/clusteroperator/v1alpha1"
 	clientset "github.com/openshift/cluster-operator/pkg/client/clientset_generated/clientset"
-	controller "github.com/openshift/cluster-operator/pkg/controller"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	capiv1 "sigs.k8s.io/cluster-api/pkg/apis/cluster/v1alpha1"
@@ -90,15 +90,15 @@ func NewClusterOperatorProvisioner(k8sConfig *rest.Config,
 }
 
 // Provision provisions a cluster on aws using cluster operator.
-func (provisioner *ClusterOperatorProvisioner) Provision(spec api.Cluster) error {
+func (p *ClusterOperatorProvisioner) Provision(spec api.Cluster) error {
 	// Create cluster version object.
-	err := provisioner.createClusterVersionIfNotExist(spec)
+	err := p.createClusterVersionIfNotExist(spec)
 	if err != nil {
 		return fmt.Errorf("Failed to create ClusterVersion object: %s", err)
 	}
 	// Create the cluster deployment custom resource
-	clusterDeployment := provisioner.clusterDeploymentFromSpec(spec)
-	_, err = provisioner.clusterOperatorClient.
+	clusterDeployment := p.clusterDeploymentFromSpec(spec)
+	_, err = p.clusterOperatorClient.
 		ClusteroperatorV1alpha1().
 		ClusterDeployments(clusterNameSpace).
 		Create(&clusterDeployment)
@@ -108,7 +108,7 @@ func (provisioner *ClusterOperatorProvisioner) Provision(spec api.Cluster) error
 	return nil
 }
 
-func (provisioner *ClusterOperatorProvisioner) clusterDeploymentFromSpec(spec api.Cluster) v1alpha1.ClusterDeployment {
+func (p *ClusterOperatorProvisioner) clusterDeploymentFromSpec(spec api.Cluster) v1alpha1.ClusterDeployment {
 	clusterName := strings.ToLower(spec.Name)
 	clusterDeploymentSpec := v1alpha1.ClusterDeploymentSpec{
 		ClusterName: clusterName,
@@ -127,10 +127,10 @@ func (provisioner *ClusterOperatorProvisioner) clusterDeploymentFromSpec(spec ap
 		Hardware: v1alpha1.ClusterHardwareSpec{
 			AWS: &v1alpha1.AWSClusterSpec{
 				AccountSecret: corev1.LocalObjectReference{
-					Name: provisioner.awsSecretRef,
+					Name: p.awsSecretRef,
 				},
 				SSHSecret: corev1.LocalObjectReference{
-					Name: provisioner.sshSecretRef,
+					Name: p.sshSecretRef,
 				},
 				SSHUser: "centos",
 				SSLSecret: corev1.LocalObjectReference{
@@ -145,7 +145,7 @@ func (provisioner *ClusterOperatorProvisioner) clusterDeploymentFromSpec(spec ap
 				InstanceType: "t2.xlarge",
 			},
 		},
-		MachineSets: provisioner.machineSetsFromSpec(spec),
+		MachineSets: p.machineSetsFromSpec(spec),
 	}
 
 	clusterDeployment := v1alpha1.ClusterDeployment{
@@ -165,7 +165,7 @@ func (provisioner *ClusterOperatorProvisioner) clusterDeploymentFromSpec(spec ap
 	return clusterDeployment
 }
 
-func (provisioner *ClusterOperatorProvisioner) machineSetsFromSpec(spec api.Cluster) []v1alpha1.ClusterMachineSet {
+func (p *ClusterOperatorProvisioner) machineSetsFromSpec(spec api.Cluster) []v1alpha1.ClusterMachineSet {
 	infra := v1alpha1.ClusterMachineSet{
 		ShortName: "infra",
 		MachineSetConfig: v1alpha1.MachineSetConfig{
@@ -192,7 +192,7 @@ func (provisioner *ClusterOperatorProvisioner) machineSetsFromSpec(spec api.Clus
 	return []v1alpha1.ClusterMachineSet{master, compute, infra}
 }
 
-func (provisioner *ClusterOperatorProvisioner) createClusterVersionIfNotExist(spec api.Cluster) error {
+func (p *ClusterOperatorProvisioner) createClusterVersionIfNotExist(spec api.Cluster) error {
 	openshiftAnsibleImage := "registry.svc.ci.openshift.org/openshift-cluster-operator/cluster-operator-ansible:latest"
 	clusterAPIImage := "registry.svc.ci.openshift.org/openshift-cluster-operator/kubernetes-cluster-api:latest"
 	machineControllerImgae := "registry.svc.ci.openshift.org/openshift-cluster-operator/cluster-operator:latest"
@@ -233,7 +233,7 @@ func (provisioner *ClusterOperatorProvisioner) createClusterVersionIfNotExist(sp
 	}
 
 	// Attempt to retrieve ClusterVersion object.
-	_, err := provisioner.clusterOperatorClient.
+	_, err := p.clusterOperatorClient.
 		ClusteroperatorV1alpha1().
 		ClusterVersions(clusterNameSpace).
 		Get(clusterVersionName, metav1.GetOptions{})
@@ -241,7 +241,7 @@ func (provisioner *ClusterOperatorProvisioner) createClusterVersionIfNotExist(sp
 	// If ClusterVersion does not exit - create it;
 	// Otherwise, return.
 	if errors.IsNotFound(err) {
-		_, err = provisioner.clusterOperatorClient.
+		_, err = p.clusterOperatorClient.
 			ClusteroperatorV1alpha1().
 			ClusterVersions(clusterNameSpace).
 			Create(&clusterVersion)
@@ -258,12 +258,12 @@ func (provisioner *ClusterOperatorProvisioner) createClusterVersionIfNotExist(sp
 }
 
 // GetState returns the state of the cluster
-func (provisioner *ClusterOperatorProvisioner) GetState(id string) (api.ClusterState, error) {
+func (p *ClusterOperatorProvisioner) GetState(id string) (api.ClusterState, error) {
 
 	labelSelector := fmt.Sprintf("uhc.openshift.com/cluster_id=%s", id)
 
 	// get the clusterdeployment object with the corresponding ID
-	clusterDeployments, err := provisioner.clusterOperatorClient.
+	clusterDeployments, err := p.clusterOperatorClient.
 		ClusteroperatorV1alpha1().
 		ClusterDeployments(clusterNameSpace).
 		List(metav1.ListOptions{
@@ -288,7 +288,7 @@ func (provisioner *ClusterOperatorProvisioner) GetState(id string) (api.ClusterS
 	clusterDeployment := clusterDeployments.Items[0]
 
 	// Get the cluster that was created by that deployment
-	cluster, err := provisioner.clusterAPIClient.
+	cluster, err := p.clusterAPIClient.
 		ClusterV1alpha1().
 		Clusters(clusterNameSpace).
 		Get(clusterDeployment.Spec.ClusterName, metav1.GetOptions{})
@@ -303,10 +303,10 @@ func (provisioner *ClusterOperatorProvisioner) GetState(id string) (api.ClusterS
 		return api.ClusterStateError, err
 	}
 
-	return provisioner.parseClusterStatus(*providerStatus)
+	return p.parseClusterStatus(*providerStatus)
 }
 
-func (provisioner *ClusterOperatorProvisioner) parseClusterStatus(
+func (p *ClusterOperatorProvisioner) parseClusterStatus(
 	providerStatus v1alpha1.ClusterProviderStatus) (state api.ClusterState, err error) {
 	// Currently we just check the "Ready" flag. In the future we should return more detailed data
 	if providerStatus.Ready {
