@@ -14,61 +14,56 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package main
+package service
 
 import (
 	"database/sql"
 	"fmt"
 
+	// Register the postgresql sql backend.
 	_ "github.com/lib/pq"
 	"github.com/segmentio/ksuid"
 
 	"github.com/container-mgmt/dedicated-portal/pkg/api"
 )
 
-// ClustersService performs operations on clusters.
-type ClustersService interface {
-	List(args ListArguments) (clusters api.ClusterList, err error)
-	Create(spec api.Cluster, provision bool) (result api.Cluster, err error)
-	Get(id string) (result api.Cluster, err error)
-	GetStatus(id string) (result api.ClusterStatus, err error)
+// SQLClustersService is a ClusterService placeholder implementation.
+type SQLClustersService struct {
+	provisioner ClusterProvisioner
+	db          *sql.DB
 }
 
-// GenericClustersService is a ClusterService placeholder implementation.
-type GenericClustersService struct {
-	connectionURL string
-	provisioner   ClusterProvisioner
-}
+// NewSQLClustersService is a constructor for the SQLCustomersService struct.
+func NewSQLClustersService(connStr string, provisioner ClusterProvisioner) (*SQLClustersService, error) {
+	db, err := sql.Open("postgres", connStr)
+	if err != nil {
+		return nil, err
+	}
 
-// ListArguments are arguments relevant for listing objects.
-type ListArguments struct {
-	Page int
-	Size int
-}
+	// Set DB
+	service := new(SQLClustersService)
+	service.db = db
 
-// NewClustersService Creates a new ClustersService.
-func NewClustersService(connectionURL string, provisioner ClusterProvisioner) ClustersService {
-	service := new(GenericClustersService)
-	service.connectionURL = connectionURL
+	// Set provisioner
 	service.provisioner = provisioner
-	return service
+
+	return service, nil
+}
+
+// Close closes the sql clusters service client.
+func (s *SQLClustersService) Close() error {
+	return s.db.Close()
 }
 
 // List returns lists of clusters.
-func (cs GenericClustersService) List(args ListArguments) (result api.ClusterList, err error) {
+func (s SQLClustersService) List(args ListArguments) (result api.ClusterList, err error) {
 	result.Items = make([]*api.Cluster, 0)
-	db, err := sql.Open("postgres", cs.connectionURL)
-	if err != nil {
-		return api.ClusterList{}, fmt.Errorf("Error openning connection: %v", err)
-	}
-	defer db.Close()
-
-	total, err := cs.getClusterCount(db)
+	total, err := s.getClusterCount()
 	if err != nil {
 		return api.ClusterList{}, err
 	}
 
-	rows, err := db.Query(`SELECT 
+	rows, err := s.db.Query(`SELECT
 		id,
 		name,
 		region,
@@ -156,18 +151,13 @@ func (cs GenericClustersService) List(args ListArguments) (result api.ClusterLis
 }
 
 // Create saves a new cluster definition in the Database
-func (cs GenericClustersService) Create(spec api.Cluster, provision bool) (result api.Cluster, err error) {
+func (s SQLClustersService) Create(spec api.Cluster, provision bool) (result api.Cluster, err error) {
 	id, err := ksuid.NewRandom()
 	if err != nil {
 		return api.Cluster{}, err
 	}
 
-	db, err := sql.Open("postgres", cs.connectionURL)
-	if err != nil {
-		return api.Cluster{}, err
-	}
-	defer db.Close()
-	stmt, err := db.Prepare(`
+	stmt, err := s.db.Prepare(`
 		INSERT INTO clusters (
 			id,
 			name,
@@ -247,7 +237,7 @@ func (cs GenericClustersService) Create(spec api.Cluster, provision bool) (resul
 
 	if provision {
 		// Use cluster provisioner to Provision a cluster.
-		err = cs.provisioner.Provision(newCluster)
+		err = s.provisioner.Provision(newCluster)
 		if err != nil {
 			return api.Cluster{}, fmt.Errorf("An error occurred while trying to provision cluster %s: %s",
 				spec.Name, err)
@@ -259,12 +249,7 @@ func (cs GenericClustersService) Create(spec api.Cluster, provision bool) (resul
 }
 
 // Get returns a single cluster by id
-func (cs GenericClustersService) Get(id string) (result api.Cluster, err error) {
-	db, err := sql.Open("postgres", cs.connectionURL)
-	if err != nil {
-		return api.Cluster{}, err
-	}
-	defer db.Close()
+func (s SQLClustersService) Get(id string) (result api.Cluster, err error) {
 	var (
 		name         string
 		region       string
@@ -277,7 +262,7 @@ func (cs GenericClustersService) Get(id string) (result api.Cluster, err error) 
 		state        api.ClusterState
 	)
 
-	err = db.QueryRow(`
+	err = s.db.QueryRow(`
 	SELECT
 		id,
 		name,
@@ -333,28 +318,21 @@ func (cs GenericClustersService) Get(id string) (result api.Cluster, err error) 
 		nil
 }
 
-func (cs GenericClustersService) getClusterCount(db *sql.DB) (total int, err error) {
+func (s SQLClustersService) getClusterCount() (total int, err error) {
 	// retrieve total number of clusters.
-	err = db.QueryRow("select count(*) from clusters").Scan(&total)
+	err = s.db.QueryRow("select count(*) from clusters").Scan(&total)
 	return
 }
 
 // GetStatus returns a cluster status by id
-func (cs GenericClustersService) GetStatus(id string) (result api.ClusterStatus, err error) {
-
-	// First check the id exists
-	db, err := sql.Open("postgres", cs.connectionURL)
-	if err != nil {
-		return api.ClusterStatus{}, err
-	}
-	defer db.Close()
+func (s SQLClustersService) GetStatus(id string) (result api.ClusterStatus, err error) {
 	var name string
-	err = db.QueryRow(`
-	SELECT 
-		id, 
+	err = s.db.QueryRow(`
+	SELECT
+		id,
 		name
-	FROM clusters	
-	WHERE 
+	FROM clusters
+	WHERE
 		id = $1
 	`, id,
 	).Scan(
@@ -369,7 +347,7 @@ func (cs GenericClustersService) GetStatus(id string) (result api.ClusterStatus,
 	var state api.ClusterState
 
 	// Check state with provisioner
-	state, err = cs.provisioner.GetState(id)
+	state, err = s.provisioner.GetState(id)
 	if err != nil {
 		return api.ClusterStatus{}, fmt.Errorf("An error occurred while trying get status for cluster %s: %s",
 			id, err)

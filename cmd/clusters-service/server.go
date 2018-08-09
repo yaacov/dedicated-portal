@@ -36,6 +36,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/homedir"
 
+	"github.com/container-mgmt/dedicated-portal/cmd/clusters-service/service"
 	"github.com/container-mgmt/dedicated-portal/pkg/auth"
 	"github.com/container-mgmt/dedicated-portal/pkg/signals"
 	"github.com/container-mgmt/dedicated-portal/pkg/sql"
@@ -73,7 +74,7 @@ var (
 // Server serves HTTP API requests on clusters.
 type Server struct {
 	stopCh         <-chan struct{}
-	clusterService ClustersService
+	clusterService service.ClustersService
 }
 
 func init() {
@@ -142,7 +143,7 @@ func init() {
 }
 
 // NewServer creates a new server.
-func NewServer(stopCh <-chan struct{}, clusterService ClustersService) *Server {
+func NewServer(stopCh <-chan struct{}, clusterService service.ClustersService) *Server {
 	server := new(Server)
 	server.stopCh = stopCh
 	server.clusterService = clusterService
@@ -256,16 +257,20 @@ func runServe(cmd *cobra.Command, args []string) {
 	}
 
 	// Create a connection object to the ClusterOperator.
-	provisioner, err := NewClusterOperatorProvisioner(k8sConfig, defaultAWSSecret, defaultSSHSecret)
+	provisioner, err := service.NewClusterOperatorProvisioner(k8sConfig, defaultAWSSecret, defaultSSHSecret)
 	if err != nil {
 		panic(fmt.Sprintf("Error starting clusters service: %v", err))
 	}
 
 	// Connect to the SQL service.
-	service := NewClustersService(serveArgs.dbURL, provisioner)
+	svc, err := service.NewSQLClustersService(serveArgs.dbURL, provisioner)
+	if err != nil {
+		panic(fmt.Sprintf("Error starting server: %v", err))
+	}
+
 	fmt.Println("Created cluster service.")
 
-	server := NewServer(stopCh, service)
+	server := NewServer(stopCh, svc)
 	err = server.start()
 	if err != nil {
 		panic(fmt.Sprintf("Error starting server: %v", err))

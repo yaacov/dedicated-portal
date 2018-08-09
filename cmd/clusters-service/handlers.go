@@ -25,6 +25,7 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"github.com/container-mgmt/dedicated-portal/cmd/clusters-service/service"
 	"github.com/container-mgmt/dedicated-portal/pkg/api"
 )
 
@@ -39,7 +40,7 @@ func (s Server) listClusters(w http.ResponseWriter, r *http.Request) {
 		writeJSONResponse(w, http.StatusBadRequest, map[string]string{"error": fmt.Sprintf("%v", err)})
 		return
 	}
-	results, err := s.clusterService.List(ListArguments{Page: page, Size: size})
+	results, err := s.clusterService.List(service.ListArguments{Page: page, Size: size})
 	if err != nil {
 		writeJSONResponse(w, http.StatusInternalServerError, map[string]string{"error": fmt.Sprintf("%v", err)})
 		return
