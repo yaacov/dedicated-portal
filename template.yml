@@ -308,7 +308,7 @@ objects:
           image: busybox
           command: ['install', '-m', '0600', '/secrets/tls.crt', '/secrets/tls.key', '${PG_DATADIR}']
           volumeMounts:
-          - mountPath: /var/lib/pgsql/data
+          - mountPath: ${PG_DATADIR}
             name: data
           - name: https-customers-db-secret
             mountPath: "/secrets"
@@ -327,7 +327,7 @@ objects:
           - containerPort: 5432
             protocol: TCP
           volumeMounts:
-          - mountPath: /var/lib/pgsql/data
+          - mountPath: ${PG_DATADIR}
             name: data
           - name: https-customers-db-secret
             mountPath: "/secrets"
@@ -383,7 +383,7 @@ objects:
           image: busybox
           command: ['install', '-m', '0600', '/secrets/tls.crt', '/secrets/tls.key', '${PG_DATADIR}']
           volumeMounts:
-          - mountPath: /var/lib/pgsql/data
+          - mountPath: ${PG_DATADIR}
             name: data
           - name: https-clusters-db-secret
             mountPath: "/secrets"
@@ -402,7 +402,7 @@ objects:
           - containerPort: 5432
             protocol: TCP
           volumeMounts:
-          - mountPath: /var/lib/pgsql/data
+          - mountPath: ${PG_DATADIR}
             name: data
           - name: https-clusters-db-secret
             mountPath: "/secrets"
@@ -440,8 +440,8 @@ objects:
   data:
     pg-ssl.conf: |-
       ssl = on
-      ssl_cert_file = '/var/lib/pgsql/data/tls.crt'
-      ssl_key_file = '/var/lib/pgsql/data/tls.key'
+      ssl_cert_file = '${PG_DATADIR}/tls.crt'
+      ssl_key_file = '${PG_DATADIR}/tls.key'
 # ClusterRole
 - apiVersion: rbac.authorization.k8s.io/v1
   kind: ClusterRole
